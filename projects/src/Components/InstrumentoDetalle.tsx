@@ -42,7 +42,7 @@ const InstrumentoDetalle = () => {
                 <div className="col-md-6">
                     {instrumento?.imagen ? (
                         <img
-                        src={`/img/${instrumento.imagen}`}
+                        src={`http://localhost:3000/uploads/${instrumento.imagen}`} 
                            className="img-fluid"
                             alt={instrumento.nombre}
                             style={{ height: '400px', objectFit: 'cover' }}

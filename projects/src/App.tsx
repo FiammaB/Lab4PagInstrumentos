@@ -5,8 +5,7 @@ import DondeEstamos from './Components/DondeEstamos';
 import Productos from './Components/Productos';
 import InstrumentoDetalle from './Components/InstrumentoDetalle';
 import ListaProductos from './Components/ListaProductos';
-import ModificarInstrumento from './Components/ModificarInstrumento';
-import CrearInstrumento from './Components/CrearInstrumento';
+import FormularioCrearEditar from './Components/FormularioCrearEditar';
 
 function App() {
   return (
@@ -19,8 +18,8 @@ function App() {
         <Route path="/productos" element={<Productos />} />
         <Route path="/instrumentos/:id" element={<InstrumentoDetalle />} />
         <Route path="/listaProductos" element={<  ListaProductos/>} />
-        <Route path="/modificarInstrumento/:id" element={ < ModificarInstrumento />} />
-        <Route path="/crearInstrumento" element={<CrearInstrumento />} />
+        <Route path="/FormularioCrearEditar/:id" element={ < FormularioCrearEditar />} />
+       
 
       </Routes>
     </Router>

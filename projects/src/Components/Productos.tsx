@@ -47,14 +47,14 @@ function Productos() {
                     <div key={instrumento.id} className="col-md-4 mb-4">
                         <div className="card h-100">
                             <img
-                                src={`/img/${instrumento.imagen}`}
+                                 src={`http://localhost:3000/uploads/${instrumento.imagen}`} 
                             
                                 className="card-img-top img-fluid"
-                                alt={instrumento.instrumento}
+                                alt={instrumento.nombre}
                                 style={{ height: '200px', objectFit: 'cover' }} />
                                 
                             <div className="card-body d-flex flex-column">
-                                <h5 className="card-title">{instrumento.instrumento}</h5>
+                                <h5 className="card-title">{instrumento.nombre}</h5>
                                 <p className="card-text text-muted">{instrumento.marca} {instrumento.modelo}</p>
                                 <p className="card-text">
                                     <strong>Precio:</strong> ${instrumento.precio}

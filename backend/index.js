@@ -1,11 +1,31 @@
 import mysql from 'mysql2/promise';
 import express from 'express';
 import cors from 'cors';
- const app = express();
+
+//toda la confi para imgenes
+import multer from 'multer';
+import path from 'path';
+const app = express();
 const port = 3000;
 app.use(cors());
 app.use(express.json());
- 
+//npm install multer
+//npm install -D @types/multer
+app.use('/uploads', express.static('uploads'));
+
+// Configuración de Multer para guardar archivos
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+
+const upload = multer({ storage: storage });
 const db = await mysql.createConnection({ 
     host: 'localhost',
     user: 'root',
@@ -38,112 +58,92 @@ app.get('/instrumentos/:id', async (req, res) => {
 app.listen(port, () => {
     console.log(`El servidor esta corriendo en  http://localhost:${port}`);
 }  )
-app.put('/instrumentos/:id', async (req, res) => {
-    const { id } = req.params;
-    console.log('req.body:', req.body);
-    const {
-			nombre,
-			marca,
-			modelo,
-			imagen,
-			precio,
-			costoEnvio,
-			cantidadVendida,
-			descripcion } = req.body;
-            const params = [nombre, marca, modelo, imagen, precio, costoEnvio, cantidadVendida, descripcion, id];
-    console.log('Parámetros a enviar:', params);
-    try {
-        const [result] = await db.execute('UPDATE instrumento SET nombre = ?, marca = ?, modelo = ? , imagen = ?, precio = ?, costoEnvio = ?, cantidadVendida = ?, descripcion = ? WHERE id = ?', [nombre,
-			marca,
-			modelo,
-			imagen,
-			precio,
-			costoEnvio,
-			cantidadVendida,
-			descripcion, id]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Instrumento no encontrado' });
-        }
-        res.json({ message: 'Instrumento actualizado' });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-})
-app.post('/instrumentos', async (req, res) => {
-    // 1. Debugging inicial - verifica EXACTAMENTE lo que llega
-    console.log('Body recibido:', JSON.stringify(req.body, null, 2));
-    
-    // 2. Extracción segura de campos con valores por defecto
-    const body = {
-        nombre: req.body.nombre?.trim(),
-        marca: req.body.marca?.trim() || null,
-        modelo: req.body.modelo?.trim() || null,
-        imagen: req.body.imagen?.trim() || null,
-        precio: req.body.precio ? parseFloat(req.body.precio) : null,
-        costoEnvio: req.body.costoEnvio?.trim() || 'G',
-        cantidadVendida: parseInt(req.body.cantidadVendida) || 0,
-        descripcion: req.body.descripcion?.trim() || null
-    };
-
+// Endpoint para actualizar un instrumento
+app.put('/instrumentos/:id', upload.single('imagenFile'), async (req, res) => {
+  const { id } = req.params;
   
+  try {
+      let imagenUrl = req.body.imagen;  // Mantener la imagen existente por defecto
+      
+      // Si se subió nueva imagen
+      if (req.file) {
+          imagenUrl = `${req.file.filename}`;
+          // Aquí podrías eliminar la imagen anterior si lo deseas
+      }
 
-    // 4. Ejecución con manejo detallado de errores
-    try {
-        console.log('Intentando insertar:', body);
-        
-        const [result] = await db.execute(
-            `INSERT INTO instrumento 
-            (nombre, marca, modelo, imagen, precio, costoEnvio, cantidadVendida, descripcion) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
-            [
-                body.nombre,
-                body.marca,
-                body.modelo,
-                body.imagen,
-                body.precio,
-                body.costoEnvio,
-                body.cantidadVendida,
-                body.descripcion
-            ]
-        );
+      const instrumentoData = {
+          nombre: req.body.nombre,
+          marca: req.body.marca,
+          modelo: req.body.modelo,
+          imagen: imagenUrl,
+          precio: parseFloat(req.body.precio),
+          costoEnvio: req.body.costoEnvio,
+          cantidadVendida: parseInt(req.body.cantidadVendida),
+          descripcion: req.body.descripcion
+      };
 
-        console.log('Inserción exitosa, ID:', result.insertId);
-        
-        return res.status(201).json({
-            success: true,
-            id: result.insertId,
-            message: 'Instrumento creado correctamente',
-            data: body
-        });
+      const [result] = await db.execute(
+          'UPDATE instrumento SET nombre=?, marca=?, modelo=?, imagen=?, precio=?, costoEnvio=?, cantidadVendida=?, descripcion=? WHERE id=?',
+          [...Object.values(instrumentoData), id]
+      );
 
-    } catch (error) {
-        console.error('ERROR EN BD:', {
-            mensaje: error.message,
-            sql: error.sql,
-            parametros_enviados: [
-                body.nombre,
-                body.marca,
-                body.modelo,
-                body.imagen,
-                body.precio,
-                body.costoEnvio,
-                body.cantidadVendida,
-                body.descripcion
-            ],
-            stack: error.stack
-        });
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ error: 'Instrumento no encontrado' });
+      }
 
-        return res.status(500).json({
-            error: 'Error en la base de datos',
-            mensaje: process.env.NODE_ENV === 'development' 
-                   ? error.message 
-                   : 'Ocurrió un error al procesar la solicitud',
-            detalle: process.env.NODE_ENV === 'development'
-                   ? `Columna problemática: ${error.sqlMessage.match(/Column '(.*?)'/)?.[1] || 'desconocida'}`
-                   : undefined
-        });
-    }
+      res.json({ 
+          success: true,
+          imagenUrl: imagenUrl
+      });
+
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Endpoint para crear un nuevo instrumento
+app.post('/instrumentos', upload.single('imagenFile'), async (req, res) => {
+  try {
+      if (!req.file) {
+          return res.status(400).json({ error: 'No se subió ninguna imagen' });
+      }
+
+      const imagenUrl = `${req.file.filename}`;  // URL accesible públicamente
+
+      const instrumentoData = {
+          nombre: req.body.nombre,
+          marca: req.body.marca,
+          modelo: req.body.modelo,
+          imagen: imagenUrl,  // Guardamos la URL pública
+          precio: parseFloat(req.body.precio),
+          costoEnvio: req.body.costoEnvio || 'G',
+          cantidadVendida: parseInt(req.body.cantidadVendida) || 0,
+          descripcion: req.body.descripcion
+      };
+
+      const [result] = await db.execute(
+          `INSERT INTO instrumento 
+          (nombre, marca, modelo, imagen, precio, costoEnvio, cantidadVendida, descripcion) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
+          Object.values(instrumentoData)
+      );
+
+      res.status(201).json({
+          success: true,
+          id: result.insertId,
+          nombre: instrumentoData.nombre,
+          imagenUrl: imagenUrl  // Enviamos la URL al frontend
+      });
+
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ 
+          success: false,
+          error: 'Error al procesar la solicitud',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+  }
 });
 app.delete('/instrumentos/:id', async (req, res) => {
     const { id } = req.params;
@@ -178,4 +178,3 @@ app.get('/instrumentos/filtrar', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 })  
-
